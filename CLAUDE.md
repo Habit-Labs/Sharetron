@@ -17,6 +17,7 @@ Local dev loop: the vault at `~/Desktop/Notes` symlinks `.obsidian/plugins/share
 
 - **Zero runtime dependencies, deliberately.** PDF generation went through jspdf/html2canvas once and was ripped out (npm audit critical, 850KB bundle). It now uses Electron's `printToPDF` on a hidden `<webview>`. Do not add runtime deps; `npm audit` must stay at 0 vulnerabilities for community-plugin trust.
 - **No top-level Node/Electron imports.** `manifest.json` has `isDesktopOnly: false`, so `main.js` must evaluate on mobile where `fs`/`os`/`path`/`electron` don't exist. All Node builtins are lazily `require()`d inside desktop-only code paths. A top-level `import * as fs from 'fs'` will crash the plugin on iOS at load time.
+- **`Platform.isMacOS` is true on iOS.** Obsidian derives it from `navigator.appVersion.indexOf("Mac")`, and iOS user agents contain "like Mac OS X". Never use it alone to mean "desktop Mac" — gate desktop-only behavior on `Platform.isDesktop`/`isDesktopApp` and mobile on `isIosApp`/`isMobile`. (This shipped a duplicate mobile menu item in 1.0.1 before being caught.)
 - **`ShareMenu` is only reachable via `electron.remote`.** It's a main-process API; `require('electron').ShareMenu` is always `undefined` in the renderer. Obsidian exposes it through its `@electron/remote` wiring as `electron.remote.ShareMenu` — that lookup in `desktop-share.ts` is not dead code, it's the only working path. (This was once "cleaned up" and broke sharing entirely.)
 
 ## Architecture

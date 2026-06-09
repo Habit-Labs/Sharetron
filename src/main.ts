@@ -5,7 +5,10 @@ export default class SharetronPlugin extends Plugin {
 	private actionButtons: HTMLElement[] = [];
 
 	async onload() {
-		if (!Platform.isMacOS && !(Platform as any).isIosApp) return;
+		// Note: Platform.isMacOS is UA-derived and also true on iOS ("like Mac OS X"),
+		// so gate on the app shell (isDesktopApp/isIosApp), not the OS flag alone.
+		const supported = (Platform as any).isIosApp || (Platform.isDesktopApp && Platform.isMacOS);
+		if (!supported) return;
 
 		this.cleanupOldTempFiles();
 
@@ -39,7 +42,8 @@ export default class SharetronPlugin extends Plugin {
 
 		// Context-menu items are desktop-only: mobile's three-dot menu already has a
 		// built-in Share entry, so ours would sit right next to it as a duplicate.
-		if (Platform.isMacOS) {
+		// (Must be isDesktop, not isMacOS — the latter is true on iOS, see above.)
+		if (Platform.isDesktop) {
 			this.registerEvent(
 				this.app.workspace.on('file-menu', (menu, file) => {
 					if (!(file instanceof TFile) || file.extension !== 'md') return;
