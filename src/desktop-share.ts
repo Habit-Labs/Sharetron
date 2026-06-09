@@ -52,31 +52,57 @@ th { background: #f5f5f5; }
 <body>${htmlContent}</body>
 </html>`;
 
-	const electron = require('electron');
-	const { BrowserWindow } = electron.remote || electron;
+	const htmlPath = path.join(os.tmpdir(), `sharetron-${file.basename}.html`);
+	const pdfPath = path.join(os.tmpdir(), `${file.basename}.pdf`);
 
-	const win = new BrowserWindow({
-		show: false,
-		width: 800,
-		height: 600,
-		webPreferences: { offscreen: true },
+	fs.writeFileSync(htmlPath, fullHtml);
+
+	const pdfBuffer = await new Promise<Buffer>((resolve, reject) => {
+		const webview = document.createElement('webview') as any;
+		webview.style.position = 'fixed';
+		webview.style.left = '-9999px';
+		webview.style.width = '800px';
+		webview.style.height = '600px';
+		webview.src = `file://${htmlPath}`;
+		document.body.appendChild(webview);
+
+		const cleanup = () => {
+			if (webview.parentNode) document.body.removeChild(webview);
+		};
+
+		const timeout = setTimeout(() => {
+			cleanup();
+			reject(new Error('PDF conversion timed out'));
+		}, 15000);
+
+		webview.addEventListener('dom-ready', async () => {
+			try {
+				const buf = await webview.printToPDF({
+					pageSize: 'Letter',
+					printBackground: true,
+				});
+				clearTimeout(timeout);
+				cleanup();
+				resolve(Buffer.from(buf));
+			} catch (err) {
+				clearTimeout(timeout);
+				cleanup();
+				reject(err);
+			}
+		});
+
+		webview.addEventListener('did-fail-load', () => {
+			clearTimeout(timeout);
+			cleanup();
+			reject(new Error('Failed to load HTML for PDF conversion'));
+		});
 	});
 
-	await win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(fullHtml)}`);
+	try { fs.unlinkSync(htmlPath); } catch { /* */ }
+	fs.writeFileSync(pdfPath, pdfBuffer);
 
-	const pdfBuffer = await win.webContents.printToPDF({
-		printBackground: true,
-		pageSize: 'Letter',
-		margins: { top: 0.5, bottom: 0.5, left: 0.5, right: 0.5 },
-	});
-
-	win.destroy();
-
-	const tmpPath = path.join(os.tmpdir(), `${file.basename}.pdf`);
-	fs.writeFileSync(tmpPath, pdfBuffer);
-
-	openShareMenu(tmpPath, () => {
-		try { fs.unlinkSync(tmpPath); } catch { /* already cleaned up */ }
+	openShareMenu(pdfPath, () => {
+		try { fs.unlinkSync(pdfPath); } catch { /* */ }
 	});
 }
 
