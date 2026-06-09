@@ -4,6 +4,6 @@
   "version": "1.0.0",
   "minAppVersion": "1.0.0",
   "description": "Share notes via the native OS share sheet as Markdown or PDF.",
-  "author": "Samuel Callahan",
+  "author": "Habit Labs",
   "isDesktopOnly": false
 }
