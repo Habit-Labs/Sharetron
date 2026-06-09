@@ -1,0 +1,29 @@
+.share-note-format-picker {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	padding: 8px 0;
+}
+
+.share-note-format-btn {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 12px 16px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--background-secondary);
+	color: var(--text-normal);
+	font-size: var(--font-ui-medium);
+	cursor: pointer;
+	transition: background 0.15s ease;
+}
+
+.share-note-format-btn:hover {
+	background: var(--background-modifier-hover);
+}
+
+.share-note-format-btn:active {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
