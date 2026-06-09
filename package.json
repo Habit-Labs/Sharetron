@@ -9,6 +9,10 @@
     "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production"
   },
   "license": "MIT",
+  "dependencies": {
+    "html2canvas": "^1.4.1",
+    "jspdf": "^2.5.2"
+  },
   "devDependencies": {
     "@types/node": "^22.15.17",
     "esbuild": "0.25.5",

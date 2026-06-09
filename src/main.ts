@@ -1,11 +1,16 @@
 import { MarkdownView, Notice, Platform, Plugin, TFile } from 'obsidian';
 import { shareNote } from './share';
+import * as os from 'os';
+import * as path from 'path';
+import * as fs from 'fs';
 
 export default class ShareNotePlugin extends Plugin {
-	private viewsWithAction = new WeakSet<MarkdownView>();
+	private actionButtons: HTMLElement[] = [];
 
 	async onload() {
 		if (!Platform.isMacOS && !(Platform as any).isIosApp) return;
+
+		this.cleanupOldTempFiles();
 
 		this.addRibbonIcon('share', 'Share note', () => {
 			const file = this.app.workspace.getActiveFile();
@@ -19,12 +24,15 @@ export default class ShareNotePlugin extends Plugin {
 		const addShareActions = () => {
 			this.app.workspace.iterateAllLeaves((leaf) => {
 				const view = leaf.view;
-				if (view instanceof MarkdownView && !this.viewsWithAction.has(view)) {
-					this.viewsWithAction.add(view);
-					view.addAction('share', 'Share note', () => {
-						const file = view.file;
-						if (file) shareNote(this.app, file);
-					});
+				if (view instanceof MarkdownView) {
+					const existing = view.containerEl.querySelector('.view-action[aria-label="Share note"]');
+					if (!existing) {
+						const btn = view.addAction('share', 'Share note', () => {
+							const file = view.file;
+							if (file) shareNote(this.app, file);
+						});
+						this.actionButtons.push(btn);
+					}
 				}
 			});
 		};
@@ -69,5 +77,25 @@ export default class ShareNotePlugin extends Plugin {
 		});
 	}
 
-	onunload() {}
+	onunload() {
+		for (const btn of this.actionButtons) {
+			btn.remove();
+		}
+		this.actionButtons = [];
+	}
+
+	private cleanupOldTempFiles() {
+		try {
+			const tmpDir = os.tmpdir();
+			for (const f of fs.readdirSync(tmpDir)) {
+				if (f.startsWith('sharetron-') && f.endsWith('.pdf')) {
+					const fullPath = path.join(tmpDir, f);
+					const stat = fs.statSync(fullPath);
+					if (Date.now() - stat.mtimeMs > 3600000) {
+						try { fs.unlinkSync(fullPath); } catch { /* */ }
+					}
+				}
+			}
+		} catch { /* */ }
+	}
 }
