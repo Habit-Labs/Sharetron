@@ -1,5 +1,5 @@
 {
-  "name": "obsidian-share-note",
+  "name": "sharetron",
   "version": "1.0.0",
   "description": "Share notes via the native OS share sheet.",
   "main": "main.js",
@@ -9,15 +9,6 @@
     "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production"
   },
   "license": "MIT",
-  "dependencies": {
-    "html2canvas": "^1.4.1",
-    "jspdf": "^2.5.2"
-  },
-  "overrides": {
-    "jspdf": {
-      "dompurify": "^3.2.4"
-    }
-  },
   "devDependencies": {
     "@types/node": "^22.15.17",
     "esbuild": "0.25.5",

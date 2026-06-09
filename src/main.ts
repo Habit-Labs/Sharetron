@@ -1,10 +1,7 @@
 import { MarkdownView, Notice, Platform, Plugin, TFile } from 'obsidian';
 import { shareNote } from './share';
-import * as os from 'os';
-import * as path from 'path';
-import * as fs from 'fs';
 
-export default class ShareNotePlugin extends Plugin {
+export default class SharetronPlugin extends Plugin {
 	private actionButtons: HTMLElement[] = [];
 
 	async onload() {
@@ -85,10 +82,14 @@ export default class ShareNotePlugin extends Plugin {
 	}
 
 	private cleanupOldTempFiles() {
+		if (!Platform.isDesktop) return;
 		try {
+			const os = require('os');
+			const path = require('path');
+			const fs = require('fs');
 			const tmpDir = os.tmpdir();
 			for (const f of fs.readdirSync(tmpDir)) {
-				if (f.startsWith('sharetron-') && f.endsWith('.pdf')) {
+				if (f.startsWith('sharetron-') && (f.endsWith('.pdf') || f.endsWith('.html'))) {
 					const fullPath = path.join(tmpDir, f);
 					const stat = fs.statSync(fullPath);
 					if (Date.now() - stat.mtimeMs > 3600000) {

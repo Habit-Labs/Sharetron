@@ -13,7 +13,7 @@ export async function mobileShare(app: App, file: TFile): Promise<void> {
 		}
 	} catch (err: any) {
 		if (err instanceof DOMException && err.name === 'AbortError') return;
-		console.error('Share Note: mobile share failed', err);
+		console.error('Sharetron: mobile share failed', err);
 		new Notice(`Failed to share: ${err.message}`);
 	}
 }
