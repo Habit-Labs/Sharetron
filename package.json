@@ -1,6 +1,6 @@
 {
   "name": "sharetron",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Share notes via the native OS share sheet.",
   "main": "main.js",
   "type": "module",

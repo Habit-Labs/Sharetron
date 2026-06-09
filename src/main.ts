@@ -37,28 +37,32 @@ export default class SharetronPlugin extends Plugin {
 		this.app.workspace.onLayoutReady(addShareActions);
 		this.registerEvent(this.app.workspace.on('layout-change', addShareActions));
 
-		this.registerEvent(
-			this.app.workspace.on('file-menu', (menu, file) => {
-				if (!(file instanceof TFile) || file.extension !== 'md') return;
-				menu.addItem((item) => {
-					item.setTitle('Share note')
-						.setIcon('share')
-						.onClick(() => shareNote(this.app, file));
-				});
-			})
-		);
+		// Context-menu items are desktop-only: mobile's three-dot menu already has a
+		// built-in Share entry, so ours would sit right next to it as a duplicate.
+		if (Platform.isMacOS) {
+			this.registerEvent(
+				this.app.workspace.on('file-menu', (menu, file) => {
+					if (!(file instanceof TFile) || file.extension !== 'md') return;
+					menu.addItem((item) => {
+						item.setTitle('Share note')
+							.setIcon('share')
+							.onClick(() => shareNote(this.app, file));
+					});
+				})
+			);
 
-		this.registerEvent(
-			this.app.workspace.on('editor-menu', (menu, _editor, view) => {
-				const file = view.file;
-				if (!file) return;
-				menu.addItem((item) => {
-					item.setTitle('Share note')
-						.setIcon('share')
-						.onClick(() => shareNote(this.app, file));
-				});
-			})
-		);
+			this.registerEvent(
+				this.app.workspace.on('editor-menu', (menu, _editor, view) => {
+					const file = view.file;
+					if (!file) return;
+					menu.addItem((item) => {
+						item.setTitle('Share note')
+							.setIcon('share')
+							.onClick(() => shareNote(this.app, file));
+					});
+				})
+			);
+		}
 
 		this.addCommand({
 			id: 'share-note',
