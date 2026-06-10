@@ -8,8 +8,7 @@ export async function mobileShare(app: App, file: TFile): Promise<void> {
 		if (navigator.canShare && navigator.canShare({ files: [shareFile] })) {
 			await navigator.share({ files: [shareFile] });
 		} else {
-			await navigator.clipboard.writeText(content);
-			new Notice('Share not available — content copied to clipboard.');
+			new Notice('Sharing is not available on this device.');
 		}
 	} catch (err: any) {
 		if (err instanceof DOMException && err.name === 'AbortError') return;

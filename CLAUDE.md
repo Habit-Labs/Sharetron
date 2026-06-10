@@ -17,6 +17,7 @@ Local dev loop: the vault at `~/Desktop/Notes` symlinks `.obsidian/plugins/share
 
 - **Zero runtime dependencies, deliberately.** PDF generation went through jspdf/html2canvas once and was ripped out (npm audit critical, 850KB bundle). It now uses Electron's `printToPDF` on a hidden `<webview>`. Do not add runtime deps; `npm audit` must stay at 0 vulnerabilities for community-plugin trust.
 - **No top-level Node/Electron imports.** `manifest.json` has `isDesktopOnly: false`, so `main.js` must evaluate on mobile where `fs`/`os`/`path`/`electron` don't exist. All Node builtins are lazily `require()`d inside desktop-only code paths. A top-level `import * as fs from 'fs'` will crash the plugin on iOS at load time.
+- **The automated review scorecard is public.** Obsidian's directory scans every version and shows the results to users before install. Avoid APIs that add flags: no `vault.getFiles()`/`getMarkdownFiles()` enumeration (use `metadataCache.getFirstLinkpathDest` or `getAbstractFileByPath`), no `navigator.clipboard`. Direct `fs` use is the one accepted Warning — keep it confined to `sharetron-*` files in the OS tmpdir, and keep the README "filesystem access" section accurate.
 - **`Platform.isMacOS` is true on iOS.** Obsidian derives it from `navigator.appVersion.indexOf("Mac")`, and iOS user agents contain "like Mac OS X". Never use it alone to mean "desktop Mac" — gate desktop-only behavior on `Platform.isDesktop`/`isDesktopApp` and mobile on `isIosApp`/`isMobile`. (This shipped a duplicate mobile menu item in 1.0.1 before being caught.)
 - **`ShareMenu` is only reachable via `electron.remote`.** It's a main-process API; `require('electron').ShareMenu` is always `undefined` in the renderer. Obsidian exposes it through its `@electron/remote` wiring as `electron.remote.ShareMenu` — that lookup in `desktop-share.ts` is not dead code, it's the only working path. (This was once "cleaned up" and broke sharing entirely.)
 
@@ -32,4 +33,8 @@ Flow: `main.ts` (lifecycle, UI entry points) → `share.ts` (platform router) �
 
 ## Releasing
 
-Community-plugin requirements already wired in: `manifest.json` id is `sharetron` (ids must not contain "obsidian"; the name "Share Note" is taken by an existing plugin — don't revert to it), `versions.json` maps plugin version → `minAppVersion` and must be updated together with `manifest.json` on every release. GitHub release tag is the bare version (`1.0.0`, no `v` prefix) with `main.js`, `manifest.json`, `styles.css` as assets.
+To cut a release: bump the version in `manifest.json`, `package.json`, and `versions.json` (maps plugin version → `minAppVersion`) together, commit, then push a tag named exactly the bare version (`1.0.3`, no `v` prefix). `.github/workflows/release.yml` builds, generates artifact attestations, and publishes the GitHub release with `main.js`/`manifest.json`/`styles.css` — do NOT `gh release create` locally; locally-built assets have no provenance attestation. Obsidian installs by matching the release tag to the `manifest.json` version.
+
+Directory submission happens at community.obsidian.md (web portal; sign in, link a GitHub account whose Habit-Labs org membership is **public**) — the old obsidianmd/obsidian-releases PR process is dead. Every version gets an automated review whose results appear on the plugin's public page. Status: submitted June 2026, pending review.
+
+Identity constraints: id `sharetron` (ids must not contain "obsidian"); the name "Share Note" is taken by an existing plugin — don't revert to it.

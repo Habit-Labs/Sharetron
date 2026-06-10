@@ -136,13 +136,19 @@ async function inlineEmbeddedImages(app: App, container: HTMLElement, file: TFil
 	}
 }
 
+// Resource URLs look like app://<id>/<url-encoded absolute path>?<mtime>.
+// Map back to a vault file by stripping the vault base path — no enumeration.
 function resolveResourceFile(app: App, resourceUrl: string): TFile | null {
-	for (const f of app.vault.getFiles()) {
-		if (IMAGE_MIME[f.extension.toLowerCase()] && resourceUrl.startsWith(app.vault.getResourcePath(f).split('?')[0])) {
-			return f;
-		}
+	try {
+		const absPath = decodeURIComponent(new URL(resourceUrl).pathname);
+		const adapter = app.vault.adapter as any;
+		const basePath: string = adapter.getBasePath ? adapter.getBasePath() : '';
+		if (!basePath || !absPath.startsWith(basePath + '/')) return null;
+		const file = app.vault.getAbstractFileByPath(absPath.slice(basePath.length + 1));
+		return file instanceof TFile ? file : null;
+	} catch {
+		return null;
 	}
-	return null;
 }
 
 function buildPrintDocument(bodyHtml: string): string {
