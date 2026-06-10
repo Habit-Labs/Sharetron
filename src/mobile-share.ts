@@ -1,4 +1,5 @@
 import { App, Notice, TFile } from 'obsidian';
+import { errorMessage } from './util';
 
 export async function mobileShare(app: App, file: TFile): Promise<void> {
 	try {
@@ -10,9 +11,9 @@ export async function mobileShare(app: App, file: TFile): Promise<void> {
 		} else {
 			new Notice('Sharing is not available on this device.');
 		}
-	} catch (err: any) {
+	} catch (err: unknown) {
 		if (err instanceof DOMException && err.name === 'AbortError') return;
 		console.error('Sharetron: mobile share failed', err);
-		new Notice(`Failed to share: ${err.message}`);
+		new Notice(`Failed to share: ${errorMessage(err)}`);
 	}
 }

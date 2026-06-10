@@ -4,10 +4,10 @@ import { shareNote } from './share';
 export default class SharetronPlugin extends Plugin {
 	private actionButtons: HTMLElement[] = [];
 
-	async onload() {
+	onload() {
 		// Note: Platform.isMacOS is UA-derived and also true on iOS ("like Mac OS X"),
 		// so gate on the app shell (isDesktopApp/isIosApp), not the OS flag alone.
-		const supported = (Platform as any).isIosApp || (Platform.isDesktopApp && Platform.isMacOS);
+		const supported = Platform.isIosApp || (Platform.isDesktopApp && Platform.isMacOS);
 		if (!supported) return;
 
 		this.cleanupOldTempFiles();
@@ -18,7 +18,7 @@ export default class SharetronPlugin extends Plugin {
 				new Notice('No note is open to share.');
 				return;
 			}
-			shareNote(this.app, file);
+			void shareNote(this.app, file);
 		});
 
 		const addShareActions = () => {
@@ -29,7 +29,7 @@ export default class SharetronPlugin extends Plugin {
 					if (!existing) {
 						const btn = view.addAction('share', 'Share note', () => {
 							const file = view.file;
-							if (file) shareNote(this.app, file);
+							if (file) void shareNote(this.app, file);
 						});
 						this.actionButtons.push(btn);
 					}
@@ -50,7 +50,7 @@ export default class SharetronPlugin extends Plugin {
 					menu.addItem((item) => {
 						item.setTitle('Share note')
 							.setIcon('share')
-							.onClick(() => shareNote(this.app, file));
+							.onClick(() => void shareNote(this.app, file));
 					});
 				})
 			);
@@ -62,7 +62,7 @@ export default class SharetronPlugin extends Plugin {
 					menu.addItem((item) => {
 						item.setTitle('Share note')
 							.setIcon('share')
-							.onClick(() => shareNote(this.app, file));
+							.onClick(() => void shareNote(this.app, file));
 					});
 				})
 			);
@@ -77,7 +77,7 @@ export default class SharetronPlugin extends Plugin {
 					new Notice('No note is open to share.');
 					return;
 				}
-				shareNote(this.app, file);
+				void shareNote(this.app, file);
 			},
 		});
 	}
@@ -92,9 +92,9 @@ export default class SharetronPlugin extends Plugin {
 	private cleanupOldTempFiles() {
 		if (!Platform.isDesktop) return;
 		try {
-			const os = require('os');
-			const path = require('path');
-			const fs = require('fs');
+			const os = window.require('os') as typeof import('os');
+			const path = window.require('path') as typeof import('path');
+			const fs = window.require('fs') as typeof import('fs');
 			const tmpDir = os.tmpdir();
 			for (const f of fs.readdirSync(tmpDir)) {
 				if (f.startsWith('sharetron-') && (f.endsWith('.pdf') || f.endsWith('.html'))) {

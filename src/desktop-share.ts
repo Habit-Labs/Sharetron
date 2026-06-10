@@ -1,5 +1,6 @@
-import { App, Component, MarkdownRenderer, Notice, TFile, arrayBufferToBase64 } from 'obsidian';
+import { App, Component, FileSystemAdapter, MarkdownRenderer, Notice, Platform, TFile, arrayBufferToBase64 } from 'obsidian';
 import { ShareFormat } from './format-modal';
+import { errorMessage } from './util';
 
 const PDF_RENDER_TIMEOUT_MS = 15000;
 
@@ -16,29 +17,32 @@ const IMAGE_MIME: Record<string, string> = {
 export async function desktopShare(app: App, file: TFile, format: ShareFormat): Promise<void> {
 	try {
 		if (format === 'markdown') {
-			await shareMarkdown(app, file);
+			shareMarkdown(app, file);
 		} else {
 			await sharePdf(app, file);
 		}
-	} catch (err: any) {
+	} catch (err: unknown) {
 		console.error('Sharetron: desktop share failed', err);
-		new Notice(`Failed to share: ${err.message}`);
+		new Notice(`Failed to share: ${errorMessage(err)}`);
 	}
 }
 
-async function shareMarkdown(app: App, file: TFile): Promise<void> {
+function shareMarkdown(app: App, file: TFile): void {
 	const fullPath = getFullPath(app, file);
 	openShareMenu(fullPath);
 }
 
 async function sharePdf(app: App, file: TFile): Promise<void> {
-	const os = require('os');
-	const path = require('path');
-	const fs = require('fs');
+	if (!Platform.isDesktop) {
+		return;
+	}
+	const os = window.require('os') as typeof import('os');
+	const path = window.require('path') as typeof import('path');
+	const fs = window.require('fs') as typeof import('fs');
 
 	const markdown = await app.vault.read(file);
 
-	const container = document.createElement('div');
+	const container = activeDocument.createElement('div');
 	const component = new Component();
 	component.load();
 	await MarkdownRenderer.render(app, markdown, container, file.path, component);
@@ -68,12 +72,9 @@ async function sharePdf(app: App, file: TFile): Promise<void> {
 // printToPDF, which is available from the renderer on the webview element.
 function printHtmlToPdf(htmlPath: string): Promise<Uint8Array> {
 	return new Promise((resolve, reject) => {
-		const webview = document.createElement('webview') as any;
+		const webview = activeDocument.createElement('webview') as unknown as SharetronWebview;
 		webview.src = `file://${htmlPath}`;
-		webview.style.position = 'fixed';
-		webview.style.left = '-9999px';
-		webview.style.width = '816px';
-		webview.style.height = '1056px';
+		webview.addClass('sharetron-print-webview');
 
 		let settled = false;
 		const cleanup = () => webview.remove();
@@ -85,28 +86,30 @@ function printHtmlToPdf(htmlPath: string): Promise<Uint8Array> {
 			reject(new Error('Timed out while rendering the PDF.'));
 		}, PDF_RENDER_TIMEOUT_MS);
 
-		webview.addEventListener('did-finish-load', async () => {
-			if (settled) return;
-			try {
-				const data: Uint8Array = await webview.printToPDF({
-					pageSize: 'Letter',
-					printBackground: true,
-				});
+		webview.addEventListener('did-finish-load', () => {
+			void (async () => {
 				if (settled) return;
-				settled = true;
-				window.clearTimeout(timer);
-				cleanup();
-				resolve(data);
-			} catch (err) {
-				if (settled) return;
-				settled = true;
-				window.clearTimeout(timer);
-				cleanup();
-				reject(err);
-			}
+				try {
+					const data = await webview.printToPDF({
+						pageSize: 'Letter',
+						printBackground: true,
+					});
+					if (settled) return;
+					settled = true;
+					window.clearTimeout(timer);
+					cleanup();
+					resolve(data);
+				} catch (err: unknown) {
+					if (settled) return;
+					settled = true;
+					window.clearTimeout(timer);
+					cleanup();
+					reject(err instanceof Error ? err : new Error(String(err)));
+				}
+			})();
 		});
 
-		document.body.appendChild(webview);
+		activeDocument.body.appendChild(webview);
 	});
 }
 
@@ -120,7 +123,7 @@ async function inlineEmbeddedImages(app: App, container: HTMLElement, file: TFil
 		const mime = target && IMAGE_MIME[target.extension.toLowerCase()];
 		if (!target || !mime) continue;
 		const data = await app.vault.readBinary(target);
-		const img = document.createElement('img');
+		const img = activeDocument.createElement('img');
 		img.src = `data:${mime};base64,${arrayBufferToBase64(data)}`;
 		embed.replaceWith(img);
 	}
@@ -140,9 +143,10 @@ async function inlineEmbeddedImages(app: App, container: HTMLElement, file: TFil
 // Map back to a vault file by stripping the vault base path — no enumeration.
 function resolveResourceFile(app: App, resourceUrl: string): TFile | null {
 	try {
+		const adapter = app.vault.adapter;
+		if (!(adapter instanceof FileSystemAdapter)) return null;
 		const absPath = decodeURIComponent(new URL(resourceUrl).pathname);
-		const adapter = app.vault.adapter as any;
-		const basePath: string = adapter.getBasePath ? adapter.getBasePath() : '';
+		const basePath = adapter.getBasePath();
 		if (!basePath || !absPath.startsWith(basePath + '/')) return null;
 		const file = app.vault.getAbstractFileByPath(absPath.slice(basePath.length + 1));
 		return file instanceof TFile ? file : null;
@@ -188,16 +192,18 @@ function buildPrintDocument(bodyHtml: string): string {
 }
 
 function getFullPath(app: App, file: TFile): string {
-	const path = require('path');
-	const adapter = app.vault.adapter as any;
-	if (typeof adapter.getFullPath === 'function') {
-		return adapter.getFullPath(file.path);
+	const adapter = app.vault.adapter;
+	if (!(adapter instanceof FileSystemAdapter)) {
+		throw new Error('Vault is not on the local filesystem.');
 	}
-	return path.join(adapter.getBasePath(), file.path);
+	return adapter.getFullPath(file.path);
 }
 
 function openShareMenu(filePath: string, onClose?: () => void): void {
-	const electron = require('electron');
+	if (!Platform.isDesktop) {
+		return;
+	}
+	const electron = window.require('electron') as SharetronElectron;
 	// ShareMenu is a main-process API; in Obsidian's renderer it is only reachable
 	// through the remote module Obsidian exposes via @electron/remote.
 	const ShareMenu = (electron.remote && electron.remote.ShareMenu) || electron.ShareMenu;

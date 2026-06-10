@@ -1,3 +1,12 @@
+/* Hidden off-screen webview used to render the PDF via Electron printToPDF.
+   816x1056px = US Letter at 96dpi; it must keep real dimensions to render. */
+.sharetron-print-webview {
+	position: fixed;
+	left: -9999px;
+	width: 816px;
+	height: 1056px;
+}
+
 .share-note-format-picker {
 	display: flex;
 	flex-direction: column;
